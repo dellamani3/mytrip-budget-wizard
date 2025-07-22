@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import FlightPricingInfo from "@/components/FlightPricingInfo";
+import { AITripChat } from "@/components/AITripChat";
 
 const TripResults = () => {
   const location = useLocation();
@@ -93,8 +94,8 @@ const TripResults = () => {
   const selectedFlightOption = flightOptions.find(f => f.id === selectedFlight) || flightOptions[0];
   const selectedAccommodationOption = accommodationOptions.find(a => a.id === selectedAccommodation) || accommodationOptions[1];
   
-  // Use activities from backend API
-  const activities = realTripData?.activities || [
+  // Use activities from backend API with state for AI chat updates
+  const [activities, setActivities] = useState(realTripData?.activities || [
     { day: 1, title: "Arrival & Local Exploration", cost: 50, type: "culture" },
     { day: 2, title: "Cultural Tour & Sightseeing", cost: 80, type: "sightseeing" },
     { day: 3, title: "Adventure Activity", cost: 100, type: "adventure" },
@@ -102,7 +103,34 @@ const TripResults = () => {
     { day: 5, title: "Local Experience", cost: 60, type: "culture" },
     { day: 6, title: "Shopping & Leisure", cost: 40, type: "shopping" },
     { day: 7, title: "Departure Preparation", cost: 30, type: "relaxation" }
-  ];
+  ]);
+
+  // Handle itinerary updates from AI chat
+  const handleItineraryUpdate = (updatedActivities: any[], dayNumber: number) => {
+    setActivities(prevActivities => {
+      const newActivities = [...prevActivities];
+      
+      // Create new activities for the specified day
+      const newDayActivities = updatedActivities.map((activity, index) => ({
+        day: dayNumber,
+        title: activity.activity || activity.title,
+        cost: parseInt(activity.cost?.replace(/[^0-9]/g, '') || '50'),
+        type: activity.category || activity.type || 'culture',
+        time: activity.time,
+        description: activity.description,
+        duration: activity.duration
+      }));
+
+      // Remove existing activities for this day and add new ones
+      const filteredActivities = newActivities.filter(act => act.day !== dayNumber);
+      return [...filteredActivities, ...newDayActivities].sort((a, b) => a.day - b.day);
+    });
+
+    toast({
+      title: "Itinerary Updated!",
+      description: `Day ${dayNumber} has been customized according to your preferences.`,
+    });
+  };
   
   const staticCosts = {
     transport: Math.floor((tripData?.budget || 2000) * 0.1),
@@ -410,6 +438,13 @@ const TripResults = () => {
                 ))}
               </CardContent>
             </Card>
+            
+            {/* AI Trip Chat */}
+            <AITripChat
+              tripData={realTripData || tripData}
+              onItineraryUpdate={handleItineraryUpdate}
+              className="mt-6"
+            />
           </div>
         </div>
 
